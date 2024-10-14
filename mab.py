@@ -122,6 +122,25 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+# 클릭률과 닫기율 막대 그래프
+click_rates = [clicks / (clicks + closes) if (clicks + closes) > 0 else 0 
+               for clicks, closes in zip(st.session_state.session['arm_clicks'], st.session_state.session['arm_closes'])]
+close_rates = [closes / (clicks + closes) if (clicks + closes) > 0 else 0 
+               for clicks, closes in zip(st.session_state.session['arm_clicks'], st.session_state.session['arm_closes'])]
+
+fig_bar = go.Figure(data=[
+    go.Bar(name='클릭률', x=ad_names, y=click_rates, marker_color=colors),
+    go.Bar(name='닫기율', x=ad_names, y=close_rates, marker_color=colors_dark)
+])
+
+fig_bar.update_layout(
+    title="각 캐릭터의 클릭률과 닫기율",
+    yaxis_title="비율",
+    barmode='stack'
+)
+
+st.plotly_chart(fig_bar)
+
 # 총 상호작용 수에 따른 캐릭터 노출 비율 누적 영역 차트 생성
 def create_cumulative_exposure_plot():
     exposures = np.array(st.session_state.session['ad_exposures'])
