@@ -93,69 +93,141 @@ st.write(f"총 상호작용 수: {st.session_state.session['total_interactions']
 for i, name in enumerate(ad_names):
     st.write(f"{name} - 클릭 수: {st.session_state.session['arm_clicks'][i]}, 닫기 수: {st.session_state.session['arm_closes'][i]}")
 
-# 그래프를 2x2 배열로 표시
-col1, col2 = st.columns(2)
-col3, col4 = st.columns(2)
+# 각 캐릭터의 예상 클릭률 시각화 (Plotly 사용)
+x = np.linspace(0, 1, 100)
+fig = go.Figure()
 
-with col1:
-    # 각 캐릭터의 예상 클릭률 시각화 (Plotly 사용)
-    x = np.linspace(0, 1, 100)
-    fig = go.Figure()
+for i in range(3):
+    y = beta.pdf(x, st.session_state.session['ts'].successes[i], st.session_state.session['ts'].failures[i])
+    fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name=f'{ad_names[i]} 분포', line=dict(color=colors[i])))
+    
+    # 샘플링 결과 추가
+    sample = np.random.beta(st.session_state.session['ts'].successes[i], st.session_state.session['ts'].failures[i])
+    fig.add_trace(go.Scatter(
+        x=[sample], 
+        y=[0],  # y값을 0으로 설정하여 x축 위에 표시
+        mode='markers',
+        name=f'{ad_names[i]} 샘플',
+        marker=dict(size=10, color=colors_dark[i], symbol='star')  # 마커를 'x'로 변경
+    ))
 
-    for i in range(3):
-        y = beta.pdf(x, st.session_state.session['ts'].successes[i], st.session_state.session['ts'].failures[i])
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name=f'{ad_names[i]} 분포', line=dict(color=colors[i])))
-        
-        sample = np.random.beta(st.session_state.session['ts'].successes[i], st.session_state.session['ts'].failures[i])
-        fig.add_trace(go.Scatter(
-            x=[sample], 
-            y=[0],
-            mode='markers',
-            name=f'{ad_names[i]} 샘플',
-            marker=dict(size=10, color=colors_dark[i], symbol='star')
+fig.update_layout(
+    title="각 캐릭터의 예상 클릭률 분포와 샘플링 결과",
+    xaxis_title="클릭률",
+    yaxis_title="확률 밀도",
+    legend_title="캐릭터",
+    xaxis=dict(range=[0, 1]),  # x축 범위를 0에서 1로 고정
+    yaxis=dict(range=[0, None])  # y축의 최소값을 0으로 설정
+)
+
+st.plotly_chart(fig)
+
+# 클릭률과 닫기율 막대 그래프
+click_rates = [clicks / (clicks + closes) if (clicks + closes) > 0 else 0 
+               for clicks, closes in zip(st.session_state.session['arm_clicks'], st.session_state.session['arm_closes'])]
+close_rates = [closes / (clicks + closes) if (clicks + closes) > 0 else 0 
+               for clicks, closes in zip(st.session_state.session['arm_clicks'], st.session_state.session['arm_closes'])]
+
+fig_bar = go.Figure(data=[
+    go.Bar(name='클릭률', x=ad_names, y=click_rates, marker_color=colors),
+    go.Bar(name='닫기율', x=ad_names, y=close_rates, marker_color=colors_dark)
+])
+
+fig_bar.update_layout(
+    title="각 캐릭터의 클릭률과 닫기율",
+    yaxis_title="비율",
+    barmode='stack'
+)
+
+st.plotly_chart(fig_bar)
+
+# 총 상호작용 수에 따른 캐릭터 노출 비율 누적 영역 차트 생성
+def create_cumulative_exposure_plot():
+    exposures = np.array(st.session_state.session['ad_exposures'])
+    
+    df = pd.DataFrame({
+        'Iteration': range(1, len(exposures) + 1),
+        'A_exposures': np.cumsum(exposures == 0),
+        'B_exposures': np.cumsum(exposures == 1),
+        'C_exposures': np.cumsum(exposures == 2),
+    })
+    
+    df['A_ratio'] = df['A_exposures'] / df['Iteration']
+    df['B_ratio'] = df['B_exposures'] / df['Iteration']
+    df['C_ratio'] = df['C_exposures'] / df['Iteration']
+    
+    fig_area = go.Figure()
+    
+    fig_area.add_trace(go.Scatter(
+        x=df['Iteration'], y=df['A_ratio'], mode='lines', name=ad_names[0],
+        stackgroup='one', line=dict(width=0.5, color='#e15241')
+    ))
+    
+    fig_area.add_trace(go.Scatter(
+        x=df['Iteration'], y=df['B_ratio'], mode='lines', name=ad_names[1],
+        stackgroup='one', line=dict(width=0.5, color='#97c15c')
+    ))
+    
+    fig_area.add_trace(go.Scatter(
+        x=df['Iteration'], y=df['C_ratio'], mode='lines', name=ad_names[2],
+        stackgroup='one', line=dict(width=0.5, color='#4350af')
+    ))
+    
+    fig_area.update_layout(
+        title="총 상호작용 수에 따른 캐릭터 노출 비율",
+        xaxis_title="총 상호작용 수",
+        yaxis_title="노출 비율",
+        showlegend=True
+    )
+    
+    return fig_area
+
+# 누적 클릭률과 닫기율 차트 생성
+def create_cumulative_rates_plot():
+    exposures = np.array(st.session_state.session['ad_exposures'])
+    clicks = np.array(st.session_state.session['arm_clicks'])
+    closes = np.array(st.session_state.session['arm_closes'])
+    
+    df = pd.DataFrame({
+        'Iteration': range(1, len(exposures) + 1),
+        'A_clicks': np.cumsum(exposures == 0) * (clicks[0] / max(1, exposures.tolist().count(0))),
+        'B_clicks': np.cumsum(exposures == 1) * (clicks[1] / max(1, exposures.tolist().count(1))),
+        'C_clicks': np.cumsum(exposures == 2) * (clicks[2] / max(1, exposures.tolist().count(2))),
+        'A_closes': np.cumsum(exposures == 0) * (closes[0] / max(1, exposures.tolist().count(0))),
+        'B_closes': np.cumsum(exposures == 1) * (closes[1] / max(1, exposures.tolist().count(1))),
+        'C_closes': np.cumsum(exposures == 2) * (closes[2] / max(1, exposures.tolist().count(2)))
+    })
+    
+    fig_rates = go.Figure()
+    
+    for i, name in enumerate(ad_names):
+        fig_rates.add_trace(go.Scatter(
+            x=df['Iteration'], 
+            y=df[f'{chr(65+i)}_clicks'] / df['Iteration'], 
+            mode='lines', 
+            name=f'{name} 클릭률',
+            line=dict(color=colors[i])
         ))
-
-    fig.update_layout(
-        title="각 캐릭터의 예상 클릭률 분포와 샘플링 결과",
-        xaxis_title="클릭률",
-        yaxis_title="확률 밀도",
-        legend_title="캐릭터",
-        xaxis=dict(range=[0, 1]),
-        yaxis=dict(range=[0, None]),
-        height=400  # 그래프 높이 조정
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-with col2:
-    # 클릭률과 닫기율 막대 그래프
-    click_rates = [clicks / (clicks + closes) if (clicks + closes) > 0 else 0 
-                   for clicks, closes in zip(st.session_state.session['arm_clicks'], st.session_state.session['arm_closes'])]
-    close_rates = [closes / (clicks + closes) if (clicks + closes) > 0 else 0 
-                   for clicks, closes in zip(st.session_state.session['arm_clicks'], st.session_state.session['arm_closes'])]
-
-    fig_bar = go.Figure(data=[
-        go.Bar(name='클릭률', x=ad_names, y=click_rates, marker_color=colors),
-        go.Bar(name='닫기율', x=ad_names, y=close_rates, marker_color=colors_dark)
-    ])
-
-    fig_bar.update_layout(
-        title="각 캐릭터의 클릭률과 닫기율",
+        fig_rates.add_trace(go.Scatter(
+            x=df['Iteration'], 
+            y=df[f'{chr(65+i)}_closes'] / df['Iteration'], 
+            mode='lines', 
+            name=f'{name} 닫기율',
+            line=dict(color=colors_dark[i], dash='dash')
+        ))
+    
+    fig_rates.update_layout(
+        title="누적 클릭률과 닫기율",
+        xaxis_title="총 상호작용 수",
         yaxis_title="비율",
-        barmode='stack',
-        height=400  # 그래프 높이 조정
+        showlegend=True
     )
+    
+    return fig_rates
 
-    st.plotly_chart(fig_bar, use_container_width=True)
 
-with col3:
-    # 총 상호작용 수에 따른 캐릭터 노출 비율 누적 영역 차트
-    fig_area = create_cumulative_exposure_plot()
-    fig_area.update_layout(height=400)  # 그래프 높이 조정
-    st.plotly_chart(fig_area, use_container_width=True)
+# 누적 영역 차트 표시
+st.plotly_chart(create_cumulative_exposure_plot())
 
-with col4:
-    # 누적 클릭률과 닫기율 차트
-    fig_rates = create_cumulative_rates_plot()
-    fig_rates.update_layout(height=400)  # 그래프 높이 조정
-    st.plotly_chart(fig_rates, use_container_width=True)
+# 누적 클릭률과 닫기율 차트 표시
+st.plotly_chart(create_cumulative_rates_plot())
