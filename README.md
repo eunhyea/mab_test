@@ -38,26 +38,9 @@
 ](https://arxiv.org/abs/1506.00779)  
 <br><br>
 
-## 3️⃣ Streamlit 페이지 구현
-```
-# 톰슨 샘플링 알고리즘 정의 
-
-class ThompsonSampling:
-    def __init__(self, n_arms):
-        self.n_arms = n_arms
-        self.successes = np.ones(n_arms)
-        self.failures = np.ones(n_arms)
-
-    def select_arm(self):
-        samples = [np.random.beta(self.successes[i], self.failures[i]) for i in range(self.n_arms)]
-        return np.argmax(samples)
-
-    def update(self, arm, reward):
-        if reward == 1:
-            self.successes[arm] += 1
-        else:
-            self.failures[arm] += 1
-```
+## 3️⃣ Streamlit 테스트 페이지 배포
+|![mab1](https://github.com/user-attachments/assets/2b5d8d0c-fa20-4cf3-959d-6c4869a8af88) | ![image](https://github.com/user-attachments/assets/b8acb724-ebac-41db-80ca-23ed3cea5be8) |
+| --- | --- |
 
 ## 📌 트러블슈팅
 - 이랬는데<br>
@@ -65,5 +48,7 @@ class ThompsonSampling:
 <br>
 
 ## 📌 디벨롭 방향
-- 이렇게 하고 싶습니다!
+- 실제 사용자 로그 데이터 수집부터 시작하는 파이프라인 구축하기
+- aws 아키텍쳐 위에서 환경 구축하기
+- 카나리 배포 과정에서 실제 테스트 진행하기
 
