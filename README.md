@@ -1,7 +1,7 @@
 # 📌 우리fis아카데미 3기 2차 기술세미나(우수상)
 <br>  
 
-> [발표 PPT(하단 이미지 첨부)](https://www.miricanvas.com/v/13rcy9e) <br>
+> [발표 PPT](https://www.miricanvas.com/v/13rcy9e) <br>
 > [스트림릿 배포 링크](https://eunhyea-mab-test-mab-ls9xri.streamlit.app/)
 <br>
 
