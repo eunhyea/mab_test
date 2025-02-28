@@ -112,7 +112,7 @@ for i in range(3):
     ))
 
 fig.update_layout(
-    title="각 캐릭터의 예상 클릭률 분포와 샘플링 결과",
+    title="각 캐릭터의 예상 클릭률 베타 분포와 샘플링 결과",
     xaxis_title="클릭률",
     yaxis_title="확률 밀도",
     legend_title="캐릭터",
