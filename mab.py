@@ -231,4 +231,3 @@ st.plotly_chart(create_cumulative_exposure_plot())
 
 # 누적 클릭률과 닫기율 차트 표시
 st.plotly_chart(create_cumulative_rates_plot())
-
